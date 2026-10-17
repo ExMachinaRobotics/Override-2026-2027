@@ -6,6 +6,7 @@ int stack = 1;
 int reallevel = 0;
 FILE* logfile = nullptr;
 int flushCounter = 0;
+bool toggleFlip = false;
 
 void updateRealLevel() {
     reallevel = 800 * stack + (goal * 260);
@@ -23,6 +24,10 @@ pros::MotorGroup rightMotors({3, 4, 5}, pros::MotorGearset::blue); // right moto
 // ARM - 2 motors total
 pros::MotorGroup Arm({11, -12}, pros::MotorGearset::red); // left side of arm
 // pros::MotorGroup ArmRight({-12}, pros::MotorGearset::red); // right side of arm
+
+pros::MotorGroup SideToggle({-14, 16}, pros::MotorGearset::green);
+
+pros::Motor Claw({-20}, pros::MotorGearset::green);
 
 // Inertial Sensor on port 10
 pros::Imu imu(10);
@@ -122,9 +127,10 @@ void initialize() {
     while (imu.is_calibrating()) { // wait for the IMU to finish calibrating
         pros::delay(1000);
     }
-   
     updateRealLevel();
-    
+    Claw.set_brake_mode_all(pros::E_MOTOR_BRAKE_BRAKE);
+    leftMotors.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    rightMotors.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
     int stacklevel = 0; // sets the initial value for the stack level
     rotation.reset_position(); // reset the rotation sensor to 0
     rotation.reset(); // reset the rotation sensor to 0
@@ -193,15 +199,6 @@ void initialize() {
         }
     });
 }
-
-void clawClose() {
-    claw.set_value(true);
-}
-
-void clawOpen() {
-    claw.set_value(false);
-}
-
 /**
  * Runs while the robot is disabled
  */
@@ -216,6 +213,13 @@ void competition_initialize() {}
 // this needs to be put outside a function
 ASSET(example_txt); // '.' replaced with "_" to make c++ happy
 
+void clawClose() {
+    claw.set_value(true);
+}
+
+void clawOpen() {
+    claw.set_value(false);
+}
 /**
  * Runs during auto
  *
@@ -249,77 +253,131 @@ void example_autonomous() {
     chassis.waitUntilDone();
     pros::lcd::print(4, "pure pursuit finished!");
 }
-void HALF_AWP() {
-    chassis.moveToPoint(-17, 9.6, 1000, {.forwards = true}); 
-    chassis.turnToPoint(-17, 9.6, 1000);    
-    chassis.moveToPoint(-17, 9.6, 1000, {.forwards = true});    
-    clawOpen();
-    chassis.moveToPoint(-17, 9.6, 1000, {.forwards = true});
-    clawOpen();
-    chassis.moveToPoint(-14, 6.6, 1000, {.forwards = false});
-    chassis.turnToPoint(-29.25, -12.9, 1000);
-    chassis.moveToPoint(-29.25, -12.9, 1000, {.forwards = true});
-    clawClose();
-    chassis.moveToPoint(-15.28, 1.56, 1000, {.forwards = false});
-    chassis.turnToPoint(-24.24, 3.19, 1000);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(-24.24, 3.19, 1000);
-    Arm.move_absolute(800,100);
-    pros::delay(250);
-    Arm.move_absolute(700,100);
-    clawOpen();
-    Arm.move_absolute(0,100);
-    chassis.moveToPoint(-17.47, 3.63, 1000, {.forwards = false});
-    chassis.turnToPoint(-21.64, 21.34, 1000);
-    chassis.moveToPoint(-21.64, 21.34, 1000, {.forwards = true});
-    clawClose();
-    chassis.turnToPoint(-23.13, 7.43 , 1000);
-    Arm.move_absolute(1600,100);
-    chassis.moveToPoint(-23.13, 7.43 , 1000);
-    Arm.move_absolute(1500,100);
-    clawOpen();
-    chassis.moveToPoint(-21.21, 19.37, 1000, {.forwards = false});
-    Arm.move_absolute(0,100);
-}
-void ELIMS_NEITHER_PIN() {
-    chassis.turnToPoint(-17, 9.6, 1000);    
-    chassis.moveToPoint(-17, 9.6, 1000, {.forwards = true});    
-    clawOpen();
-    chassis.moveToPoint(-17.47, 3.63, 1000, {.forwards = false});
-    chassis.turnToPoint(-21.64, 21.34, 1000);
-    chassis.moveToPoint(-21.64, 21.34, 1000, {.forwards = true});
-    clawClose();
-    chassis.moveToPoint(-21.64, 21.34, 1000, {.forwards = false});
-    chassis.turnToPoint(-23.13, 7.43 , 1000);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(-23.13, 7.43 , 1000);
-    Arm.move_absolute(100,100);
-    clawOpen();
-    chassis.moveToPoint(-21.21, 19.37, 1000, {.forwards = false});
-    Arm.move_absolute(0,100);
-    chassis.turnToPoint(-21.21, 0, 1000);
-    chassis.moveToPoint(-21.21, 0, 1000);
-    clawClose();
-    chassis.turnToPoint(-21.21, 19.37, 1000);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(-21.21, 19.37, 1000);
-    Arm.move_absolute(100,100);
-    clawOpen();
-    Arm.move_absolute(0,100);
-    chassis.moveToPoint(-21.21, 0, 1000, {.forwards = false});
-    chassis.turnToPoint(-21.21, 19.37, 1000);
-    chassis.moveToPoint(-21.21, 19.37, 1000);
-}
-
-void autonomous() {
-     chassis.setPose(0, 70, 0);
+void HALF_AWP_COMP_RIGHT() {
+    chassis.setPose(0, 70, 90);
     Arm.set_zero_position(Arm.get_position());
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    Arm.move_absolute(1600,1000);
+    chassis.turnToHeading(125, 1000);
+    SideToggle.move(100);
+    pros::delay(135);
+    SideToggle.brake();
+    chassis.turnToHeading(125, 1000);
+    pros::delay(1000);
+    SideToggle.move(100);
+    pros::delay(105);
+    SideToggle.brake();
+    Arm.move_absolute(400, 1000);
+    chassis.turnToPoint(24, 83, 2000, {.maxSpeed = 75});
+    chassis.moveToPoint(24, 83, 2000, {.maxSpeed = 75});
+    pros::delay(1000);
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(0,1000);
+    pros::delay(500);
+    clawClose();
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    // pros::delay(250);
+    // pros::delay(500);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.moveToPoint(11, 85, 1000, {.forwards = false});
+    // // chassis.turnToPoint(17, 87, 1000);
+    // // chassis.turnToPoint(18, 79, 1000);
+    // chassis.moveToPoint(25.5, 75.75, 1000);
+    // // chassis.turnToPoint(29, 73, 1000);
+    // // chassis.moveToPoint(29, 73, 1000, {.maxSpeed = 50});
+    // chassis.moveToPoint(26, 75.75, 1500, {.maxSpeed = 50});
+    // chassis.turnToPoint(27.5, 60 ,1000);
+    // chassis.moveToPoint(25.5, 60, 1500);
+    // pros::delay(500);
+    // clawOpen();
+    // pros::delay(100);
+    // Arm.move_absolute(1500, 1000);
+    // // chassis.turnToPoint(28, 82, 3000, {.maxSpeed = 50});
+    // chassis.moveToPoint(28, 84, 2000, {.maxSpeed = 50});
+    // pros::delay(1000);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    // Arm.move_absolute(800, 1000);
+    // pros::delay(500);
+    // clawClose();
+}
+void HALF_AWP_COMP_SKILLS() {
+    chassis.setPose(0, 70, 90);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.turnToHeading(125, 1000);
+    SideToggle.move(100);
+    pros::delay(135);
+    SideToggle.brake();
+    chassis.turnToHeading(125, 1000);
+    pros::delay(1000);
+    SideToggle.move(100);
+    pros::delay(105);
+    SideToggle.brake();
+    Arm.move_absolute(400, 1000);
+    chassis.turnToPoint(24, 83, 2000, {.maxSpeed = 75});
+    chassis.moveToPoint(24, 83, 2000, {.maxSpeed = 75});
+    pros::delay(1000);
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(0,1000);
+    pros::delay(500);
+    clawClose();
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    // pros::delay(250);
+    // pros::delay(500);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.moveToPoint(11, 85, 1000, {.forwards = false});
+    chassis.turnToPoint(0, 160, 1000);
+    chassis.moveToPoint(0, 160, 5000);
+    // // chassis.turnToPoint(17, 87, 1000);
+    // // chassis.turnToPoint(18, 79, 1000);
+    // chassis.moveToPoint(25.5, 75.75, 1000);
+    // // chassis.turnToPoint(29, 73, 1000);
+    // // chassis.moveToPoint(29, 73, 1000, {.maxSpeed = 50});
+    // chassis.moveToPoint(26, 75.75, 1500, {.maxSpeed = 50});
+    // chassis.turnToPoint(27.5, 60 ,1000);
+    // chassis.moveToPoint(25.5, 60, 1500);
+    // pros::delay(500);
+    // clawOpen();
+    // pros::delay(100);
+    // Arm.move_absolute(1500, 1000);
+    // // chassis.turnToPoint(28, 82, 3000, {.maxSpeed = 50});
+    // chassis.moveToPoint(28, 84, 2000, {.maxSpeed = 50});
+    // pros::delay(1000);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    // Arm.move_absolute(800, 1000);
+    // pros::delay(500);
+    // clawClose();
+    // chassis.moveToPoint(28, 100, 5000);
+}
+void HALF_AWP_COMP_LEFT() {
+   chassis.setPose(0, 70, 90);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.turnToHeading(55, 1000);
+    SideToggle.move(100);
+    pros::delay(135);
+    SideToggle.brake();
+    chassis.turnToHeading(55, 1000);
+    pros::delay(1000);
+    SideToggle.move(100);
+    pros::delay(105);
+    SideToggle.brake();
+    // pros::delay(250);
+    // pros::delay(500);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.moveToPoint(-11, 85, 1000, {.forwards = false});
+}
+void LIFT_HALF_AWP() {
+    chassis.setPose(0, 70, 0);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    Arm.move_absolute(1500,1000);
     pros::delay(850);
     Arm.move_absolute(800,1000);
     pros::delay(850);
-    chassis.moveToPoint(0, 92, 1000, {.maxSpeed = 80});
+    // Arm.move_absolute(1500,1000);
+    // pros::delay(850);
+    // Arm.move_absolute(800,1000);
+    chassis.moveToPoint(0, 92, 1000, {.maxSpeed = 75});
     chassis.turnToPoint(23.5, 92, 1000);
     chassis.moveToPoint(23.5, 92, 1000, {.maxSpeed = 50});
     pros::delay(1000);
@@ -329,20 +387,61 @@ void autonomous() {
     clawClose();
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
     chassis.moveToPoint(12, 92, 1000, {.forwards = false});
-    chassis.turnToPoint(23, 115, 1000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE});
-    chassis.moveToPoint(23, 115, 1000, {.maxSpeed = 50});
+    chassis.turnToPoint(22.5, 115.25, 1000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE});
+    chassis.moveToPoint(22.5, 115.25, 1000, {.maxSpeed = 60});
     //chassis.moveToPoint(29.5, 120, 1000, {.maxSpeed = 20});
-    pros::delay(1000);
+    pros::delay(850);
     clawOpen();
     Arm.move_absolute(1500, 1000);
-    chassis.turnToPoint(37, 93, 1000);
-    chassis.moveToPoint(37, 93, 1000);2
+    chassis.turnToPoint(40, 93, 1000);
+    chassis.moveToPoint(40, 93, 1000);
     pros::delay(200);
-    Arm.move_absolute(700, 1000);
+    Arm.move_absolute(800, 1000);
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
     pros::delay(1000);
     clawClose();
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+}
+void WALL_PIN_HALF_AWP() {
+    chassis.setPose(0, 70, 90);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.turnToHeading(115, 1000);
+    SideToggle.move(100);
+    pros::delay(170);
+    SideToggle.brake();
+    Arm.move_absolute(400, 1000);
+    chassis.moveToPoint(24, 83, 2000, {.maxSpeed = 75});
+    pros::delay(1000);
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(0,1000);
+    pros::delay(500);
+    clawClose();
+    pros::delay(500);
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    chassis.moveToPoint(11, 85, 1000, {.forwards = false});
+    // chassis.turnToPoint(17, 87, 1000);
+    // chassis.turnToPoint(18, 79, 1000);
+    chassis.moveToPoint(25.5, 75.75, 1000);
+    // chassis.turnToPoint(29, 73, 1000);
+    // chassis.moveToPoint(29, 73, 1000, {.maxSpeed = 50});
+    chassis.moveToPoint(26, 75.75, 1500, {.maxSpeed = 50});
+    chassis.turnToPoint(27.5, 60 ,1000);
+    chassis.moveToPoint(25.5, 60, 1500);
+    pros::delay(500);
+    clawOpen();
+    pros::delay(100);
+    Arm.move_absolute(1500, 1000);
+    // chassis.turnToPoint(28, 82, 3000, {.maxSpeed = 50});
+    chassis.moveToPoint(28, 84, 2000, {.maxSpeed = 50});
+    pros::delay(1000);
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(800, 1000);
+    pros::delay(500);
+    clawClose();
+}
+void autonomous() {
+    HALF_AWP_COMP_RIGHT();
 }
 // Fixed-position up/down steps for the lift.
 // Tune these numbers after testing on the real robot.
@@ -357,6 +456,7 @@ void opcontrol() {
     bool clawOpenState = false;
     bool armStepMoving = false;
     uint32_t armStepStartTime = 0;
+    toggleFlip = false;
 
     while (true) {
         // =========================
@@ -365,7 +465,7 @@ void opcontrol() {
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightX = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-        chassis.arcade(leftY, rightX * 0.75);
+        chassis.arcade(leftY, rightX);
 
         // =========================
         // Arm
@@ -375,26 +475,22 @@ void opcontrol() {
         bool manualUp = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1);
         bool manualDown = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2);
 
+        bool toggleFlip = controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2);
+
         if (manualUp) {
+            Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
             Arm.move_velocity(100);
-  //          ArmRight.move_velocity(100);
             armStepMoving = false;
         }
         else if (manualDown) {
+            Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
             Arm.move_velocity(-75);
-          //  ArmRight.move_velocity(-75);
             armStepMoving = false;
         }
+
         else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)) {
             Arm.move_relative(ARM_STEP_DEGREES, ARM_STEP_VELOCITY);
            // ArmRight.move_relative(ARM_STEP_DEGREES, ARM_STEP_VELOCITY);
-            armStepMoving = true;
-            armStepStartTime = pros::millis();
-            armTimeout = 2000; // Timeout in milliseconds
-        }
-        else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
-            Arm.move_absolute(8, ARM_STEP_VELOCITY);
-           // ArmRight.move_absolute(0, ARM_STEP_VELOCITY);
             armStepMoving = true;
             armStepStartTime = pros::millis();
             armTimeout = 2000; // Timeout in milliseconds
@@ -408,36 +504,40 @@ void opcontrol() {
             }
             updateRealLevel();
         }
+
+        // if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+
+        // }
         // else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {                      
 
         // }
-        else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-            updateRealLevel();
-            if (stack == 4 || stack == 5) {
-                Arm.move_absolute(625 * stack + (goal * 260), ARM_STEP_VELOCITY);
-                armStepMoving = true;
-                armStepStartTime = pros::millis();
-                armTimeout = 10000; // Timeout in milliseconds   
-            }
-            else{
-            Arm.move_absolute(reallevel, ARM_STEP_VELOCITY);
-            armStepMoving = true;
-            armStepStartTime = pros::millis();
-            armTimeout = 10000; // Timeout in milliseconds
-                        if (stack == 6) {
-                stack = 0;
-            }
-            else {
-                stack++;
-            }
-            updateRealLevel();
-            }
+        // else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+            // updateRealLevel();
+            // if (stack == 4 || stack == 5) {
+            //     Arm.move_absolute(625 * stack + (goal * 260), ARM_STEP_VELOCITY);
+            //     armStepMoving = true;
+            //     armStepStartTime = pros::millis();
+            //     armTimeout = 10000; // Timeout in milliseconds   
+            // }
+            // else{
+            // Arm.move_absolute(reallevel, ARM_STEP_VELOCITY);
+            // armStepMoving = true;
+            // armStepStartTime = pros::millis();
+            // armTimeout = 10000; // Timeout in milliseconds
+            //             if (stack == 6) {
+            //     stack = 0;
+            // }
+            // else {
+            //     stack++;
+            // }
+            // updateRealLevel();
+            // }
                 
-        }
+        // }
 
         else if (!armStepMoving) {
             Arm.brake();
-           // ArmRight.brake();
+            Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
         }
 
 
@@ -461,12 +561,32 @@ void opcontrol() {
             }
         }
 
-        
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+            Claw.move(100);
+        }
+
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
+            Claw.brake();
+            Claw.move(-100);
+            pros::delay(80);
+            Claw.brake();
+        }
+
+
         //arm times out after armTimeout milliseconds
         if (armStepMoving && (pros::millis() - armStepStartTime) > armTimeout) {
             armStepMoving = false;
         }
 
-        pros::delay(10);
+        // if (toggleFlip = true) {
+        //     SideToggle.move_velocity(100);
+        // }
+    //     else if (controller.get_digital_new_release((pros::E_CONTROLLER_DIGITAL_R1))) {
+    //         SideToggle.move(100);
+    //         pros::delay(100);
+    //         SideToggle.brake();
+    //     }
+    //     pros::delay(10);
+    // }
     }
 }
