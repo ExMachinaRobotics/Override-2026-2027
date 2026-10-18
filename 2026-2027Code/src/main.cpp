@@ -42,6 +42,8 @@ pros::Rotation horizontalEnc(9);
 
 // vertical tracking wheel encoder, port 13, reversed
 pros::Rotation verticalEnc(-13);
+// Distance sensor
+pros::Distance distance_sensor(18);
 
 // horizontal tracking wheel. 2.75" diameter, 5.75" offset, back of the robot (negative)
 // lemlib::TrackingWheel horizontal(&horizontalEnc, lemlib::Omniwheel::NEW_275, 3.5);
@@ -169,10 +171,7 @@ void initialize() {
             pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
             pros::lcd::print(4, "IMU Heading: %.2f", imu.get_heading());
             pros::lcd::print(5, "Hold: %d \n", Arm.get_brake_mode());
-            printf("X: %f\n", chassis.getPose().x);
-            printf("Y: %f\n", chassis.getPose().y);
-            printf("Theta: %f\n", chassis.getPose().theta);
-
+            pros::lcd::print(6, "Claw Distance: %d\n", distance_sensor.get());
             if (logfile != nullptr) {
                 fprintf(logfile, "Time: %f\n", pros::millis() / 1000.0);
                 fprintf(logfile, "X: %f\n", chassis.getPose().x);
@@ -441,7 +440,32 @@ void WALL_PIN_HALF_AWP() {
     clawClose();
 }
 void autonomous() {
-    HALF_AWP_COMP_RIGHT();
+    chassis.setPose(0, 70, 90);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    Claw.move(100);
+    chassis.turnToHeading(125, 1000);
+    // SideToggle.move(100);
+    // pros::delay(135);
+    // SideToggle.brake();
+    // chassis.turnToHeading(125, 1000);
+    // pros::delay(1000);
+    // SideToggle.move(100);
+    // pros::delay(105);
+    // SideToggle.brake();
+    Arm.move_absolute(400, 1000);
+    chassis.turnToPoint(24, 83, 2000, {.maxSpeed = 75});
+    chassis.moveToPoint(24, 83, 2000, {.maxSpeed = 75});
+    pros::delay(500);
+    pros::delay(250);
+    Claw.move(-100);
+    pros::delay(80);
+    Claw.brake();
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    // chassis.moveToPoint(11, 85, 1000, {.forwards = false});
+    // Claw.move(100);
+    // chassis.turnToPoint(25.5, 75.75, 1000);
+    // chassis.moveToPoint(25.5, 75.75, 1000);
 }
 // Fixed-position up/down steps for the lift.
 // Tune these numbers after testing on the real robot.
@@ -462,6 +486,7 @@ void opcontrol() {
         // =========================
         // Drive
         // =========================
+        int distance = distance_sensor.get();
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightX = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
@@ -546,6 +571,9 @@ void opcontrol() {
         // Claw
         // X = Toggle
         // =========================
+        bool spinforward = controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1);
+        bool spinbackward = controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2);
+        bool clawspinning = false;
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
             clawOpenState = !clawOpenState;
             if (clawOpenState) {
@@ -561,17 +589,44 @@ void opcontrol() {
             }
         }
 
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+        // if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+        //     Claw.move(100);
+        //     if (distance < 10) {
+        //         Claw.brake();
+        //     }
+        //     pros::delay(20);
+        // }
+
+        // if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
+        //     Claw.move(100);
+        //     Claw.brake();
+        //     Claw.move(-100);
+        //     pros::delay(80);
+        //     Claw.brake();
+        // }
+        if (spinforward = true) {
+            clawspinning = true;
             Claw.move(100);
+            if (distance < 10) {
+            Claw.brake();
+            clawspinning = false;
+            }
+            pros::delay(20);
         }
 
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
+        if (spinbackward = true) {
+            clawspinning = true;
+            Claw.move(100);
             Claw.brake();
             Claw.move(-100);
             pros::delay(80);
             Claw.brake();
+            clawspinning = false;
         }
-
+        if (clawspinning = false){
+            Claw.brake();
+            pros::delay(20);
+        }
 
         //arm times out after armTimeout milliseconds
         if (armStepMoving && (pros::millis() - armStepStartTime) > armTimeout) {
