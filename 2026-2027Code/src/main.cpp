@@ -117,19 +117,38 @@ lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors
  * to keep execution time for tis mode under a few seconds.
  */
 void initialize() {
-    if (pros::usd::is_installed()) {
-        pros::lcd::print(6, "USB drive installed");
-    } else {
-        pros::lcd::print(6, "USB drive not installed");
-    }
-    pros::lcd::initialize(); // initialize brain screen
-   
+    pros::lcd::initialize(); // initialize brain screen   
     chassis.calibrate(); // calibrate the chassis
-    
     while (imu.is_calibrating()) { // wait for the IMU to finish calibrating
         pros::delay(1000);
     }
-    updateRealLevel();
+
+    // the default rate is 50. however, if you need to change the rate, you
+    // can do the following.
+    // lemlib::bufferedStdout().setRate(...);
+    // If you use bluetooth or a wired connection, you will want to have a rate of 10ms
+
+    // for more information on how the formatting for the loggers
+    // works, refer to the fmtlib docs
+
+    // thread to for brain screen and position logging
+    
+    pros::Task screenTask([&]() {
+        flushCounter = 0;
+        while (true) {
+            // print robot location to the brain screen
+            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
+            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
+            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
+            pros::lcd::print(4, "IMU Heading: %.2f", imu.get_heading());
+            pros::lcd::print(5, "Hold: %d \n", Arm.get_brake_mode());
+            pros::lcd::print(6, "Claw Distance: %d\n", distance_sensor.get());
+            lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
+
+            // delay to save resources
+            pros::delay(50);
+        }
+    });
     Claw.set_brake_mode_all(pros::E_MOTOR_BRAKE_BRAKE);
     leftMotors.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
     rightMotors.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
@@ -142,61 +161,6 @@ void initialize() {
     // the motor to stop cleanly after a move_relative() command.
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
   //  ArmRight.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-
-    // the default rate is 50. however, if you need to change the rate, you
-    // can do the following.
-    // lemlib::bufferedStdout().setRate(...);
-    // If you use bluetooth or a wired connection, you will want to have a rate of 10ms
-
-    // for more information on how the formatting for the loggers
-    // works, refer to the fmtlib docs
-
-    // thread to for brain screen and position logging
-    
-    if (pros::usd::is_installed()) {
-      logfile = fopen("/usd/robot_log.csv", "w");  
-      if (!logfile) {
-        pros::lcd::print(7, "Failed to open logfile");
-      } else {
-        pros::lcd::print(7, "Logfile opened");
-      }
-    }  
-
-    pros::Task screenTask([&]() {
-        flushCounter = 0;
-        while (true) {
-            // print robot location to the brain screen
-            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
-            pros::lcd::print(4, "IMU Heading: %.2f", imu.get_heading());
-            pros::lcd::print(5, "Hold: %d \n", Arm.get_brake_mode());
-            pros::lcd::print(6, "Claw Distance: %d\n", distance_sensor.get());
-            if (logfile != nullptr) {
-                fprintf(logfile, "Time: %f\n", pros::millis() / 1000.0);
-                fprintf(logfile, "X: %f\n", chassis.getPose().x);
-                fprintf(logfile, "Y: %f\n", chassis.getPose().y);
-                fprintf(logfile, "Theta: %f\n", chassis.getPose().theta);
-                fprintf(logfile, "IMU Heading: %.2f\n", imu.get_heading());
-                fprintf(logfile, "Hold: %d \n", imu.get_rotation());
-                fprintf(logfile, "Rotation: %.2f \n", imu.get_gyro_rate().z);
-            }
-            flushCounter++;
-            if (flushCounter >= 50) {
-                fflush(logfile);
-                flushCounter = 0;
-            }
-            // pros::lcd::print(6, "Goal: %d", goal);
-            // pros::lcd::print(7, "Stack: %d", stack);
-            // pros::lcd::print(3, "Real Level: %d", reallevel);
-            //Highest tick position: 25277
-            // log position telemetry
-            lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
-
-            // delay to save resources
-            pros::delay(50);
-        }
-    });
 }
 /**
  * Runs while the robot is disabled
@@ -440,32 +404,33 @@ void WALL_PIN_HALF_AWP() {
     clawClose();
 }
 void autonomous() {
-    chassis.setPose(0, 70, 90);
+    chassis.setPose(0, 0, 0);
     Arm.set_zero_position(Arm.get_position());
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
     Claw.move(100);
-    chassis.turnToHeading(125, 1000);
-    // SideToggle.move(100);
-    // pros::delay(135);
-    // SideToggle.brake();
-    // chassis.turnToHeading(125, 1000);
-    // pros::delay(1000);
-    // SideToggle.move(100);
-    // pros::delay(105);
-    // SideToggle.brake();
-    Arm.move_absolute(400, 1000);
-    chassis.turnToPoint(24, 83, 2000, {.maxSpeed = 75});
-    chassis.moveToPoint(24, 83, 2000, {.maxSpeed = 75});
-    pros::delay(500);
-    pros::delay(250);
+    chassis.moveToPoint(0, 2, 200);
+    Arm.move_absolute(2000, 1500);
+    pros::delay(950);
+    Arm.move_absolute(800,100);
+    chassis.moveToPoint(0, 19, 1000);
+    chassis.turnToPoint(24, 19, 2000,{.maxSpeed = 50});
+    chassis.moveToPoint(24, 19, 1500, {.maxSpeed = 75});    
+    chassis.moveToPoint(6, 19, 1000, {.forwards = false});
+    Arm.move_absolute(0,100);
+    // Claw.move(100);
+    chassis.turnToPoint(23, 43, 1750, {.maxSpeed= 75});
+    chassis.moveToPoint(23, 43, 1750, {.maxSpeed = 40});
+    pros::delay(2500);
+    chassis.turnToPoint(41, 20, 1000);
+    Arm.move_absolute(1500, 100);
+    chassis.moveToPoint(41, 20, 1500, {.maxSpeed = 75});
+    pros::delay(2500);
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(800, 50);
     Claw.move(-100);
     pros::delay(80);
     Claw.brake();
-    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    // chassis.moveToPoint(11, 85, 1000, {.forwards = false});
-    // Claw.move(100);
-    // chassis.turnToPoint(25.5, 75.75, 1000);
-    // chassis.moveToPoint(25.5, 75.75, 1000);
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
 }
 // Fixed-position up/down steps for the lift.
 // Tune these numbers after testing on the real robot.
@@ -589,44 +554,44 @@ void opcontrol() {
             }
         }
 
-        // if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-        //     Claw.move(100);
-        //     if (distance < 10) {
-        //         Claw.brake();
-        //     }
-        //     pros::delay(20);
-        // }
-
-        // if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
-        //     Claw.move(100);
-        //     Claw.brake();
-        //     Claw.move(-100);
-        //     pros::delay(80);
-        //     Claw.brake();
-        // }
-        if (spinforward = true) {
-            clawspinning = true;
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
             Claw.move(100);
             if (distance < 10) {
-            Claw.brake();
-            clawspinning = false;
+                Claw.brake();
             }
             pros::delay(20);
         }
 
-        if (spinbackward = true) {
-            clawspinning = true;
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
             Claw.move(100);
             Claw.brake();
             Claw.move(-100);
             pros::delay(80);
             Claw.brake();
-            clawspinning = false;
         }
-        if (clawspinning = false){
-            Claw.brake();
-            pros::delay(20);
-        }
+        // if (spinforward = true) {
+        //     clawspinning = true;
+        //     Claw.move(100);
+        //     if (distance < 10) {
+        //     Claw.brake();
+        //     clawspinning = false;
+        //     }
+        //     pros::delay(20);
+        // }
+
+        // if (spinbackward = true) {
+        //     clawspinning = true;
+        //     Claw.move(100);
+        //     Claw.brake();
+        //     Claw.move(-100);
+        //     pros::delay(80);
+        //     Claw.brake();
+        //     clawspinning = false;
+        // }
+        // if (clawspinning = false){
+        //     Claw.brake();
+        //     pros::delay(20);
+        // }
 
         //arm times out after armTimeout milliseconds
         if (armStepMoving && (pros::millis() - armStepStartTime) > armTimeout) {
