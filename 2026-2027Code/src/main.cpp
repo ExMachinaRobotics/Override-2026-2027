@@ -25,12 +25,12 @@ pros::MotorGroup rightMotors({3, 4, 5}, pros::MotorGearset::blue); // right moto
 pros::MotorGroup Arm({11, -12}, pros::MotorGearset::red); // left side of arm
 // pros::MotorGroup ArmRight({-12}, pros::MotorGearset::red); // right side of arm
 
-pros::MotorGroup SideToggle({-14, 16}, pros::MotorGearset::green);
+pros::MotorGroup SideToggle({-16, 14}, pros::MotorGearset::green);
 
 pros::Motor Claw({-20}, pros::MotorGearset::green);
 
 // Inertial Sensor on port 10
-pros::Imu imu(10);
+pros::Imu imu(13);
 //hi
 
 // Pneumatic claw on ADI Port A
@@ -40,8 +40,8 @@ pros::adi::DigitalOut claw('A');
 // horizontal tracking wheel encoder. Rotation sensor, port 20, not reversed
 pros::Rotation horizontalEnc(9);
 
-// vertical tracking wheel encoder, port 13, reversed
-pros::Rotation verticalEnc(-13);
+// vertical tracking wheel encoder, port 17, reversed
+pros::Rotation verticalEnc(-17);
 // Distance sensor
 pros::Distance distance_sensor(18);
 
@@ -462,27 +462,29 @@ void PISTON_AGAINST_WALL_HALF_AWP() {
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
 }
 void autonomous() {
-    chassis.setPose(0, 0, 90);
+    chassis.setPose(0, 8, 90);
     Arm.set_zero_position(Arm.get_position());
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
     chassis.turnToHeading(125, 1000);
     SideToggle.move(100);
     pros::delay(400);
     SideToggle.brake();
-    // pros::delay(1000);
-    // SideToggle.move(100);
-    // pros::delay(200);
-    // SideToggle.brake();
-    Arm.move_absolute(400, 1000);
-    // chassis.turnToPoint(24, 19, 1000);
-    chassis.moveToPoint(24, 19, 1000);
-    AutonPoseReset(4, 7);
+    Arm.move_absolute(450, 1000);
+    chassis.turnToPoint(25, 31, 1000);
+    chassis.moveToPoint(25, 31, 1000);
+    pros::delay(1000);
+    Arm.move_absolute(0, 1000);
+    pros::delay(1000);
     clawClose();
-    // chassis.moveToPoint(6, 19, 1000, {.forwards = false});
-    // chassis.moveToPoint(19, 12, 1000);
-    // clawOpen();
+    // Arm.move_absolute(300, 1000);
+    chassis.moveToPoint(7, 21, 1000, {.forwards = false});
+    chassis.turnToPoint(24, 52.5, 1000);
+    chassis.moveToPoint(24, 52.5, 3000, {.maxSpeed = 50});
+    pros::delay(1300);
+    clawOpen();
+
     // chassis.moveToPoint(24, 0, 1000);
-    // chassis.turnToPoint(-22, 0, 1000);
+    // chassis.turnToPoint(26, -3, 1000);
     // Arm.move_absolute(1100, 100);
     // chassis.moveToPoint(-24, 19, 1000);
     // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
@@ -670,7 +672,7 @@ void opcontrol() {
         // }
         else if (controller.get_digital_new_release((pros::E_CONTROLLER_DIGITAL_R1))) {
             SideToggle.move(100);
-            pros::delay(200);
+            pros::delay(100);
             SideToggle.brake();
         }
         pros::delay(10);
