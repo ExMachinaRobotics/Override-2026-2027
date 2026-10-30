@@ -226,22 +226,40 @@ void driveTo(float x, float y, int timeout, lemlib::MoveToPointParams params = {
         chassis.waitUntilDone();
     }
 }
+float headingToPoint(float x, float y) {
+    lemlib::Pose pose = chassis.getPose();
+    float dx = x-pose.x;
+    float dy = y-pose.y;
+    return lemlib::radToDeg(atan2(dx, dy));
+}
 bool turnUntilPin(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, int pinDistance = 0)
 {
+    float target = headingToPoint(x, y);
     chassis.turnToPoint(x, y, timeout, params);
     printf("Started turn \n");
 
     while (chassis.isInMotion())
     {
-        int distanceToObj = GoalDistance.get_distance();
-        printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
-        if (abs(pinDistance - distanceToObj) < 75 && )
+        pros::lcd::print(5, "Entered InMotion");
+        float degreesLeft = fabs(lemlib::angleError(target, chassis.getPose().theta, false));
+        pros::lcd::print(6, "DegreesLeft: %2.3f\n",degreesLeft);
+        if (degreesLeft < 75)
         {
-            printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
-            chassis.cancelMotion();
-            return true;
+            pros::lcd::print(7, "Entered DegLeft");
+
+            int distanceToObj = GoalDistance.get_distance();
+            printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
+            
+            pros::lcd::print(7, "goal dist: %d\n", distanceToObj);
+            if (abs(pinDistance - distanceToObj) < 75)
+            {
+                pros::lcd::print(7, "ABT TO CANCEL MOTION: %d\n", distanceToObj);
+                printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
+                chassis.cancelMotion();
+                return true;
+            }
         }
-        pros::delay(30);
+        pros::delay(5);
     }
     return false;
 }
@@ -562,7 +580,9 @@ void autonomous() {
     chassis.setPose(24 - ((GoalDistance.get_distance() / 25.4) - 4), 31, chassis.getPose().theta);
     // Arm.move_absolute(0, 100);
     // chassis.turnToPoint(23, 51.75, 1000);
-    turnUntilPin(20, 51.75, 5000, {.maxSpeed = 50}, 780);
+    Arm.move_absolute(500, 1000);
+    pros::delay(200);
+    turnUntilPin(20, 51.75, 5000, {.maxSpeed = 25}, 780);
     // chassis.moveToPoint(23, 51.75, 3000, {.maxSpeed = 50});//perfect point
     // pros::delay(1500);
     // clawOpen();
