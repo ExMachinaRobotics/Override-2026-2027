@@ -27,7 +27,7 @@ pros::MotorGroup rightMotors({3, 4, 5}, pros::MotorGearset::blue); // right moto
 pros::MotorGroup Arm({11, -12}, pros::MotorGearset::red); // left side of arm
 // pros::MotorGroup ArmRight({-12}, pros::MotorGearset::red); // right side of arm
 
-pros::MotorGroup SideToggle({-16, 14}, pros::MotorGearset::green);
+pros::MotorGroup SideToggle({-16, 18}, pros::MotorGearset::green);
 
 pros::Motor Claw({-20}, pros::MotorGearset::green);
 
@@ -226,30 +226,27 @@ void driveTo(float x, float y, int timeout, lemlib::MoveToPointParams params = {
         chassis.waitUntilDone();
     }
 }
-bool turnUntilPin(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, bool wait = true, bool shouldLookForPin = true, int pinDistance = 0) {
+bool turnUntilPin(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, int pinDistance = 0)
+{
     chassis.turnToPoint(x, y, timeout, params);
     printf("Started turn \n");
-    if (wait) {
-        printf("entered wait block turn \n");
 
-        chassis.waitUntilDone();
-    }
-    if (shouldLookForPin) {
-        printf("SHOULD LOOK FOR PIN CALLED\n");
-        while(true){
-            printf("REACHED WHILE LOOP, goal dist: %d\n", GoalDistance.get_distance());
-            if(GoalDistance.get_distance() < pinDistance+150 && GoalDistance.get_distance() > pinDistance-150 ){
-                printf("FOUND PIN ABT TO CANCEL MOTION\n");
-                chassis.cancelMotion();
-                return true;
-            }
-            pros::delay(5);
-        }    
+    while (chassis.isInMotion())
+    {
+        int distanceToObj = GoalDistance.get_distance();
+        printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
+        if (abs(pinDistance - distanceToObj) < 75 && )
+        {
+            printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
+            chassis.cancelMotion();
+            return true;
+        }
+        pros::delay(30);
     }
     return false;
 }
-bool turnTo(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, bool wait = true) {
-   return turnUntilPin(x, y, timeout, params, wait, false, 0);
+bool turnTo(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, bool wait = true) { // DEAD CODE - Fix it
+   return true;
 }
 // void moveToPin(float x, float y, int timeout) {
 //             while(true){
@@ -565,7 +562,7 @@ void autonomous() {
     chassis.setPose(24 - ((GoalDistance.get_distance() / 25.4) - 4), 31, chassis.getPose().theta);
     // Arm.move_absolute(0, 100);
     // chassis.turnToPoint(23, 51.75, 1000);
-    turnUntilPin(20, 51.75, 1000, {}, true, true, 780);
+    turnUntilPin(20, 51.75, 5000, {.maxSpeed = 50}, 780);
     // chassis.moveToPoint(23, 51.75, 3000, {.maxSpeed = 50});//perfect point
     // pros::delay(1500);
     // clawOpen();
