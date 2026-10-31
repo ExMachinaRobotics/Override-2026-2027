@@ -18,7 +18,7 @@ void updateRealLevel() {
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 // motor groups
-pros::Rotation rotation(19);
+pros::Rotation rotation(18);
 pros::MotorGroup leftMotors({-1, -2, -6},
                             pros::MotorGearset::blue); // left motor group - ports 3 (reversed), 4, 5 (reversed)
 pros::MotorGroup rightMotors({3, 4, 5}, pros::MotorGearset::blue); // right motor group - ports 6, 7, 9 (reversed)
@@ -47,6 +47,7 @@ pros::Rotation verticalEnc(-17);
 // Distance sensor
 pros::Distance GoalDistance(14);
 pros::Distance RWallDistance(15);
+pros::Distance LWallDistance(10);
 
 // horizontal tracking wheel. 2.75" diameter, 5.75" offset, back of the robot (negative)
 // lemlib::TrackingWheel horizontal(&horizontalEnc, lemlib::Omniwheel::NEW_275, 3.5);
@@ -220,6 +221,9 @@ void example_autonomous() {
     chassis.waitUntilDone();
     pros::lcd::print(4, "pure pursuit finished!");
 }
+void driveToPin(){
+    
+}
 void driveTo(float x, float y, int timeout, lemlib::MoveToPointParams params = {}, bool wait = true) {
     chassis.moveToPoint(x, y, timeout, params);
     if (wait) {
@@ -242,38 +246,48 @@ bool turnUntilPin(float x, float y, int timeout, lemlib::TurnToPointParams param
     {
         pros::lcd::print(5, "Entered InMotion");
         float degreesLeft = fabs(lemlib::angleError(target, chassis.getPose().theta, false));
-        pros::lcd::print(6, "DegreesLeft: %2.3f\n",degreesLeft);
-        if (degreesLeft < 75)
-        {
-            pros::lcd::print(7, "Entered DegLeft");
+        pros::lcd::print(6, "DegreesLeft: %2.3f\n", degreesLeft);
+        // if (degreesLeft < 75)
+        //{
+        // pros::lcd::print(7, "Entered DegLeft");
 
-            int distanceToObj = GoalDistance.get_distance();
-            printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
-            
-            pros::lcd::print(7, "goal dist: %d\n", distanceToObj);
-            if (abs(pinDistance - distanceToObj) < 75)
-            {
-                pros::lcd::print(7, "ABT TO CANCEL MOTION: %d\n", distanceToObj);
-                printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
-                chassis.cancelMotion();
-                return true;
-            }
+        int distanceToObj = GoalDistance.get();
+        printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
+
+        pros::lcd::print(7, "goal dist: %d\n", distanceToObj);
+        if (abs(pinDistance - distanceToObj) < 75)
+        {
+            pros::delay(30);
+            // pros::lcd::print(7, "ABT TO CANCEL MOTION: %d\n", distanceToObj);
+            printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
+            chassis.cancelMotion();
+            return true;
         }
+        //}
         pros::delay(5);
     }
+    pros::lcd::print(5, "Exiting InMotion");
     return false;
 }
-bool turnTo(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, bool wait = true) { // DEAD CODE - Fix it
-   return true;
-}
-// void moveToPin(float x, float y, int timeout) {
-//             while(true){
-//             if(GoalDistance.get_distance() <= 50){
-                
-//             }
-//             pros::delay(5);
-//         }    
-// }
+bool turnTo(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, bool wait = true) { return false;}
+    
+
+void moveToPin() {
+    pros::lcd::print(5, "entered moveToPin");
+    float d = GoalDistance.get() / 25.4;
+    pros::lcd::print(5, "d is %f ",d);
+    lemlib::Pose p = chassis.getPose();
+    float th = p.theta * (M_PI / 180.0);
+    pros::lcd::print(5, "th is %f ",th);
+    float StackX = p.x + d * sin(th);
+    float StackY = p.y + d * cos(th);
+
+    pros::lcd::print(5, "StackX: %d \n", StackX);
+    pros::lcd::print(6, "StackY: %d\n", StackY);
+    
+    chassis.moveToPoint(StackX, StackY, 3000, {.maxSpeed = 50});
+}    
+
 void turnToPin() {
     runWhile = true;
     chassis.turnToPoint(20, 51.75, 1000);
@@ -428,141 +442,16 @@ void HALF_AWP_COMP_LEFT() {
     // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
     chassis.moveToPoint(-11, 85, 1000, {.forwards = false});
 }
-void LIFT_HALF_AWP() {
-    chassis.setPose(0, 70, 0);
-    Arm.set_zero_position(Arm.get_position());
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    Arm.move_absolute(1500,1000);
-    pros::delay(850);
-    Arm.move_absolute(800,1000);
-    pros::delay(850);
-    // Arm.move_absolute(1500,1000);
-    // pros::delay(850);
-    // Arm.move_absolute(800,1000);
-    chassis.moveToPoint(0, 92, 1000, {.maxSpeed = 75});
-    chassis.turnToPoint(23.5, 92, 1000);
-    chassis.moveToPoint(23.5, 92, 1000, {.maxSpeed = 50});
-    pros::delay(1000);
-    Arm.move_absolute(0,1000);
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-    pros::delay(500);
-    clawClose();
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    chassis.moveToPoint(12, 92, 1000, {.forwards = false});
-    chassis.turnToPoint(22.5, 115.25, 1000, {.direction = AngularDirection::CCW_COUNTERCLOCKWISE});
-    chassis.moveToPoint(22.5, 115.25, 1000, {.maxSpeed = 60});
-    //chassis.moveToPoint(29.5, 120, 1000, {.maxSpeed = 20});
-    pros::delay(850);
-    clawOpen();
-    Arm.move_absolute(1500, 1000);
-    chassis.turnToPoint(40, 93, 1000);
-    chassis.moveToPoint(40, 93, 1000);
-    pros::delay(200);
-    Arm.move_absolute(800, 1000);
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-    pros::delay(1000);
-    clawClose();
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-}
-void ROLLER_SECOND_PIN_HALF_AWP() {
-    chassis.setPose(0, 0, 0);
-    Arm.set_zero_position(Arm.get_position());
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    Claw.move(100);
-    chassis.moveToPoint(0, 2, 200);
-    Arm.move_absolute(2000, 1500);
-    pros::delay(950);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(0, 19, 1000);
-    chassis.turnToPoint(24, 19, 2000,{.maxSpeed = 50});
-    chassis.moveToPoint(24, 19, 1500, {.maxSpeed = 75});    
-    chassis.moveToPoint(6, 19, 1000, {.forwards = false});
-    Arm.move_absolute(0,100);
-    // Claw.move(100);
-    chassis.turnToPoint(23, 43, 1750, {.maxSpeed= 75});
-    chassis.moveToPoint(23, 43, 1750, {.maxSpeed = 40});
-    pros::delay(2500);
-    chassis.turnToPoint(41, 20, 1000);
-    Arm.move_absolute(1500, 100);
-    chassis.moveToPoint(41, 20, 1500, {.maxSpeed = 75});
-    pros::delay(2500);
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-    Arm.move_absolute(800, 50);
-    Claw.move(-100);
-    pros::delay(80);
-    Claw.brake();
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-}
-void PISTON_SECOND_PIN_HALF_AWP(){
-    chassis.setPose(0, 0, 0);
-    Arm.set_zero_position(Arm.get_position());
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    chassis.moveToPoint(0, 2, 200);
-    Arm.move_absolute(2000, 1500);
-    pros::delay(950);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(0, 19, 1000);
-    chassis.turnToPoint(24, 19, 2000,{.maxSpeed = 50});
-    chassis.moveToPoint(24, 19, 1500, {.maxSpeed = 75});    
-    Arm.move_absolute(0,100);
-    AutonPoseReset(4, 7);
-    clawClose();
-    chassis.moveToPoint(6, 19, 1000, {.forwards = false});
-    chassis.moveToPoint(19, 12, 1000);
-    clawOpen();
-    chassis.moveToPoint(24, 0, 1000);
-    chassis.turnToPoint(-22, 0, 1000);
-    Arm.move_absolute(1100, 100);
-    chassis.moveToPoint(-24, 19, 1000);
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-    Arm.move_absolute(600, 100);
-    clawClose();
-    AutonPoseReset(0, 8);
-    chassis.moveToPoint(30, 24, 1000, {.forwards = false});
-    chassis.turnToPoint(48, 24, 1000);
-    chassis.moveToPoint(48, 24, 1000);
-    pros::delay(500);
-    clawOpen();
-    Arm.move_absolute(1800, 100);
-    chassis.moveToPoint(31, 24, 1000);
-    Arm.move_absolute(1500, 100);
-    clawClose();
-}
-void PISTON_AGAINST_WALL_HALF_AWP() {
-    chassis.setPose(0, 0, 0);
-    Arm.set_zero_position(Arm.get_position());
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-    chassis.moveToPoint(0, 2, 200);
-    Arm.move_absolute(2000, 1500);
-    pros::delay(950);
-    Arm.move_absolute(800,100);
-    chassis.moveToPoint(0, 19, 1000);
-    chassis.turnToPoint(24, 19, 2000,{.maxSpeed = 50});
-    chassis.moveToPoint(24, 19, 1500, {.maxSpeed = 75});    
-    chassis.moveToPoint(6, 19, 1000, {.forwards = false});
-    Arm.move_absolute(0,100);
-    clawClose();
-    chassis.turnToPoint(23, 43, 1750, {.maxSpeed= 75});
-    chassis.moveToPoint(23, 43, 1750, {.maxSpeed = 40});
-    pros::delay(2000);
-    clawOpen();
-    chassis.turnToPoint(41, 20, 1000);
-    Arm.move_absolute(1500, 100);
-    chassis.moveToPoint(41, 20, 1500, {.maxSpeed = 75});
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
-    Arm.move_absolute(800, 50);
-    pros::delay(500);
-    clawClose();
-    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
-}
-void autonomous() {
+void RIGHT_PISTON_SECOND_PIN_HALF_AWP() {
     chassis.setPose(0, 8, 90);
     Arm.set_zero_position(Arm.get_position());
     Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
     SideToggle.set_zero_position(0);
+
     SideToggle.move_relative(720, 100);
     pros::delay(600);
     Arm.move_absolute(450, 100);
+
     chassis.turnToPoint(25, 31, 1000);
     chassis.moveToPoint(25, 31, 1000);
     pros::delay(1000);
@@ -577,13 +466,18 @@ void autonomous() {
     // chassis.turnToPoint(25, 31, 1000);
     chassis.turnToHeading(90, 1000);
     pros::delay(500);
-    chassis.setPose(24 - ((GoalDistance.get_distance() / 25.4) - 4), 31, chassis.getPose().theta);
+    chassis.setPose(24 - ((GoalDistance.get() / 25.4) + 4), 31, chassis.getPose().theta);
     // Arm.move_absolute(0, 100);
-    // chassis.turnToPoint(23, 51.75, 1000);
-    Arm.move_absolute(500, 1000);
+    //chassis.turnToPoint(24, 54, 1000);
+    //Arm.move_absolute(500, 1000);
     pros::delay(200);
-    turnUntilPin(20, 51.75, 5000, {.maxSpeed = 25}, 780);
-    // chassis.moveToPoint(23, 51.75, 3000, {.maxSpeed = 50});//perfect point
+    turnUntilPin(18, 51.75, 2000, {.maxSpeed = 35}, 780);
+    pros::lcd::print(5, "Exited turnUntilPin");
+
+    moveToPin();
+    clawOpen();
+    
+    //chassis.moveToPoint(24, 54, 3000, {.maxSpeed = 50});//perfect point
     // pros::delay(1500);
     // clawOpen();
     // Arm.move_absolute(1100, 100);
@@ -596,16 +490,100 @@ void autonomous() {
     // clawClose();
     // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
 
-    // AutonPoseReset(); 
-    // chassis.moveToPoint(30, 24, 1000, {.forwards = false});
-    // chassis.turnToPoint(48, 24, 1000);
-    // chassis.moveToPoint(48, 24, 1000);
-    // pros::delay(500);
+}
+void LEFT_PISTON_SECOND_PIN_HALF_AWP() {
+    chassis.setPose(0, 8, 270);
+    Arm.set_zero_position(Arm.get_position());
+    Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    SideToggle.set_zero_position(0);
+    SideToggle.move_relative(720, 100);
+    pros::delay(600);
+    Arm.move_absolute(450, 100);
+    chassis.turnToPoint(-25, 31, 1000);
+    chassis.moveToPoint(-25, 31, 1000);
+    pros::delay(1000);
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    Arm.move_absolute(0, 100);
+    pros::delay(300);
+    clawClose();
+    pros::delay(500);
+    //chassis.moveToPoint(3, 21, 1000, {.forwards = false});
+    chassis.moveToPoint(-15, 20, 1000, {.forwards = false});
+    chassis.moveToPoint(0, 31, 2000, {.forwards = false});
+    // chassis.turnToPoint(25, 31, 1000);
+    chassis.turnToHeading(270, 1000);
+    pros::delay(500);
+    chassis.setPose(-(24 - ((GoalDistance.get() / 25.4) - 4)), 31, chassis.getPose().theta);
+    // Arm.move_absolute(0, 100);
+    chassis.turnToPoint(-23, 51.75, 1000);
+    Arm.move_absolute(500, 1000);
+    pros::delay(200);
+    //turnUntilPin(20, 51.75, 5000, {.maxSpeed = 25}, 780);
+    chassis.moveToPoint(-23, 51.75, 3000, {.maxSpeed = 50});//perfect point
+    // pros::delay(1500);
     // clawOpen();
-    // Arm.move_absolute(1800, 100);
-    // chassis.moveToPoint(31, 24, 1000);
-    // Arm.move_absolute(1500, 100);
+    // Arm.move_absolute(1100, 100);
+    // chassis.turnToPoint(31, 22, 2000, {.maxSpeed = 50});    
+    // chassis.moveToPoint(31, 22, 2000, {.maxSpeed = 50});
+
+    // pros::delay(1000);
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    // Arm.move_absolute(600, 100);
     // clawClose();
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+}
+void autonomous() {
+    RIGHT_PISTON_SECOND_PIN_HALF_AWP();
+
+    // Arm.set_zero_position(Arm.get_position());
+    // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+    // SideToggle.set_zero_position(0);
+    // SideToggle.move_relative(720, 100);
+    // pros::delay(600);
+    // Arm.move_absolute(450, 100);
+    // chassis.turnToPoint(25, 31, 1000);
+    // chassis.moveToPoint(25, 31, 1000);
+    // pros::delay(1000);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    // Arm.move_absolute(0, 100);
+    // pros::delay(300);
+    // clawClose();
+    // pros::delay(500);
+    // //chassis.moveToPoint(3, 21, 1000, {.forwards = false});
+    // chassis.moveToPoint(15, 20, 1000, {.forwards = false});
+    // chassis.moveToPoint(0, 31, 2000, {.forwards = false});
+    // // chassis.turnToPoint(25, 31, 1000);
+    // chassis.turnToHeading(90, 1000);
+    // pros::delay(500);
+    // chassis.setPose(24 - ((GoalDistance.get() / 25.4) - 4), 31, chassis.getPose().theta);
+    // // Arm.move_absolute(0, 100);
+    // chassis.turnToPoint(23, 51.75, 1000);
+    // Arm.move_absolute(500, 1000);
+    // pros::delay(200);
+    // //turnUntilPin(20, 51.75, 5000, {.maxSpeed = 25}, 780);
+    // chassis.moveToPoint(23, 51.75, 3000, {.maxSpeed = 50});//perfect point
+    // // pros::delay(1500);
+    // // clawOpen();
+    // // Arm.move_absolute(1100, 100);
+    // // chassis.turnToPoint(31, 22, 2000, {.maxSpeed = 50});    
+    // // chassis.moveToPoint(31, 22, 2000, {.maxSpeed = 50});
+
+    // // pros::delay(1000);
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_COAST);
+    // // Arm.move_absolute(600, 100);
+    // // clawClose();
+    // // Arm.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+
+    // // AutonPoseReset(); 
+    // // chassis.moveToPoint(30, 24, 1000, {.forwards = false});
+    // // chassis.turnToPoint(48, 24, 1000);
+    // // chassis.moveToPoint(48, 24, 1000);
+    // // pros::delay(500);
+    // // clawOpen();
+    // // Arm.move_absolute(1800, 100);
+    // // chassis.moveToPoint(31, 24, 1000);
+    // // Arm.move_absolute(1500, 100);
+    // // clawClose();
 }
 // Fixed-position up/down steps for the lift.
 // Tune these numbers after testing on the real robot.
@@ -626,8 +604,8 @@ void opcontrol() {
         // =========================
         // Drive
         // =========================
-        int goaldistance = GoalDistance.get_distance() / 25.4;
-        int walldistance = RWallDistance.get_distance() / 25.4;
+        int goaldistance = GoalDistance.get() / 25.4;
+        int walldistance = RWallDistance.get() / 25.4;
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightX = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
@@ -786,7 +764,7 @@ void opcontrol() {
         // }
         else if (controller.get_digital_new_release((pros::E_CONTROLLER_DIGITAL_R1))) {
             SideToggle.move(100);
-            pros::delay(100);
+            pros::delay(150);
             SideToggle.brake();
         }
         pros::delay(10);
