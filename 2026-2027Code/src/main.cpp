@@ -437,7 +437,7 @@ void LEFT_PISTON_SECOND_PIN_HALF_AWP() {
     chassis.setPose(-24, 28, 180);
 }
 void autonomous() {
-    LEFT_PISTON_SECOND_PIN_HALF_AWP();
+    RIGHT_PISTON_SECOND_PIN_HALF_AWP();
 
 }
 // Fixed-position up/down steps for the lift.
