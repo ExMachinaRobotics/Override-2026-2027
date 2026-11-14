@@ -251,42 +251,33 @@ float headingToPoint(float x, float y) {
 }
 bool turnUntilPin(float x, float y, int timeout, lemlib::TurnToPointParams params = {}, int pinDistance = 0)
 {
-    //hi
     float target = headingToPoint(x, y);
     chassis.turnToPoint(x, y, timeout, params);
-    printf("Started turn \n");
+    printf("Started turn\n");
+    int lastPrint = 0;
 
-    while (chassis.isInMotion())
-    {
-        printf("InMotion \n");
-        //pros::lcd::print(5, "Entered InMotion");
+    while (chassis.isInMotion()) {
         float degreesLeft = fabs(lemlib::angleError(target, chassis.getPose().theta, false));
-        printf("DegreesLeft: %2.3f\n", degreesLeft);
-        //pros::lcd::print(6, "DegreesLeft: %2.3f\n", degreesLeft);
-        if (degreesLeft < 50)
-        {
-        // pros::lcd::print(7, "Entered DegLeft");
-        printf("Entered DegLeft\n");
-        
         int distanceToObj = GoalDistance.get();
-        printf("REACHED WHILE LOOP, goal dist: %d\n", distanceToObj);
-            
-        //pros::lcd::print(7, "goal dist: %d\n", distanceToObj);
-        if (abs(pinDistance - distanceToObj) < 150)
-        {
-            //pros::lcd::print(7, "ABT TO CANCEL MOTION: %d\n", distanceToObj);
-            printf("FOUND PIN ABT TO CANCEL MOTION: %d\n", distanceToObj);
+
+        // print 10 times a second, not every loop
+        if (pros::millis() - lastPrint > 100) {
+            printf("InMotion deg left: %.1f  dist: %d\n", degreesLeft, distanceToObj);
+            lastPrint = pros::millis();
+        }
+
+        // 9999 means the sensor sees nothing, so skip it
+        if (degreesLeft < 50 && distanceToObj != 9999 && abs(pinDistance - distanceToObj) < 150) {
+            printf("FOUND PIN at %d mm\n", distanceToObj);
             chassis.cancelMotion();
             pros::delay(10);
             return true;
         }
-        }
-        pros::delay(3);
+        pros::delay(10);
     }
-    printf("Exiting InMotion");
+    printf("Turn ended, no pin found\n");
     return false;
-}   
-
+}
 void moveToPin() {
     pros::lcd::print(5, "entered moveToPin");
     int distanceToObj = GoalDistance.get();
